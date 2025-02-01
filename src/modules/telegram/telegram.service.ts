@@ -44,7 +44,7 @@ export class TelegramBotService implements OnModuleInit {
           this.logger.error(error.message);
         }
       });
-    // this.bot.onText(/\/start/, (msg) => this.start(msg));
+    //this.bot.onText(/\/start/, (msg) => this.start(msg));
     // this.bot.onText(/\/configurar/, (msg) => this.configureMachine(msg));
     // this.bot.onText(/\/registrar_uso/, (msg) => this.registerUsage(msg));
     // this.bot.onText(/\/recargar_sifon/, (msg) => this.rechargeSiphon(msg));
@@ -70,6 +70,41 @@ export class TelegramBotService implements OnModuleInit {
     await this.bot.sendMessage(chatId, message);
   }
 
+  // TODO mejorar para usar webhooks
+  async handleMessage(message: TelegramBot.Message) {
+    const text = message.text || '/help';
+    switch (text) {
+      case '/start':
+        return this.start(message);
+      case '/configurar':
+        return this.configureMachine(message);
+      case '/registrar_uso':
+        return this.registerUsage(message);
+      case '/recargar_sifon':
+        return this.rechargeSiphon(message);
+      case '/estado_sifon':
+        return this.checkSiphonStatus(message);
+      case '/cargar_sifon': {
+        const match = message.text?.match(/\/cargar_sifon (.+)/);
+        if (match) {
+          return this.createSiphon(message, match);
+        } else {
+          // Handle the case where the match is null or undefined
+          return this.sendHelpMessage(message);
+        }
+      }
+      case '/help':
+        return this.sendHelpMessage(message);
+      case '/activar_sifon':
+        return this.activeSiphon(message);
+      case '/listar_sifones':
+        return this.listSiphons(message);
+      case '/reporte':
+        return this.alertService.sendWeeklySiphonReport();
+      default:
+        return this.sendHelpMessage(message);
+    }
+  }
   async start(msg: TelegramBot.Message) {
     const chatId = String(msg.chat.id);
     await this.usageService.checkUser(chatId);
@@ -257,7 +292,10 @@ export class TelegramBotService implements OnModuleInit {
   //     });
   //   }
 
-  async createSiphon(msg: TelegramBot.Message, match: RegExpExecArray | null) {
+  async createSiphon(
+    msg: TelegramBot.Message,
+    match: RegExpMatchArray | null | undefined,
+  ) {
     const chatId = String(msg.chat.id);
     const cilynderAlias = match && match[1] ? match[1] : '';
 

@@ -146,18 +146,23 @@ export class UsageService {
   }
 
   async checkUser(chatId: string) {
-    const db = this.firebase.firestore;
-    const userRef = db.collection('users').doc(chatId);
-    const userSnap = await userRef.get();
-    if (!userSnap.exists) {
-      const newUser: IUserModel = {
-        userId: chatId,
-        createdAt: new Date().toISOString(),
-        machineType: null,
-      };
-      await userRef.set(newUser);
+    try {
+      const db = this.firebase.firestore;
+      const userRef = db.collection('users').doc(chatId);
+      const userSnap = await userRef.get();
+      if (!userSnap.exists) {
+        const newUser: IUserModel = {
+          userId: chatId,
+          createdAt: new Date().toISOString(),
+          machineType: null,
+        };
+        await userRef.set(newUser);
+      }
+      return userSnap.data() as IUserModel;
+    } catch (error) {
+      if (error instanceof Error)
+        this.logger.error('Error checking user', error.message);
     }
-    return userSnap.data() as IUserModel;
   }
 
   async getUserMachineType(

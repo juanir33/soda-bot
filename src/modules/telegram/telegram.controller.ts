@@ -13,9 +13,9 @@ export class TelegramController {
   async handleWebhook(@Req() req: Request, @Body() body: TelegramBot.Update) {
     if (this.secret === req.headers['x-telegram-bot-api-secret-token']) {
       if (!body.message) return this.logger.error('No message');
-      await this.botService.start(body.message);
+      await this.botService.handleMessage(body.message);
     }
-    this.logger.debug(
+    this.logger.error(
       'Webhook received token',
       req.headers['x-telegram-bot-api-secret-token'],
     );
