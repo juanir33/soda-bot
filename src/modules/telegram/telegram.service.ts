@@ -33,7 +33,7 @@ export class TelegramBotService implements OnModuleInit {
     this.bot = new TelegramBot(this.botToken, { webHook: true });
     this.bot
       .setWebHook(
-        `http://localhost:80/webhook`,
+        process.env.URL_WEBHOOK || '',
 
         {
           secret_token: this.secret_token,
