@@ -19,7 +19,8 @@ import { AlertsService } from 'src/modules/alerts/alerts.service';
 export class TelegramBotService implements OnModuleInit {
   private bot: TelegramBot;
   private readonly logger = new Logger(TelegramBotService.name);
-
+  private readonly botToken: string = process.env.BOT_TOKEN || 'default';
+  private readonly secret_token: string | undefined = process.env.SECRET_TOKEN;
   constructor(
     private readonly usageService: UsageService,
     private readonly siphonsService: SiphonsService,
@@ -29,16 +30,13 @@ export class TelegramBotService implements OnModuleInit {
 
   onModuleInit() {
     //const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-    this.bot = new TelegramBot(
-      '7766674684:AAHc5yhMm4KHyFDZulBM4YxdGL1DCcmxj-I',
-      { webHook: true },
-    );
+    this.bot = new TelegramBot(this.botToken, { webHook: true });
     this.bot
       .setWebHook(
         `http://localhost:80/webhook`,
 
         {
-          secret_token: '33233233',
+          secret_token: this.secret_token,
         },
       )
       .catch((error) => {
