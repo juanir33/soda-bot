@@ -7,6 +7,7 @@ export interface IUserModel {
   email?: string;
   createdAt: string;
   activeSiphonId?: string;
+  token: string;
 }
 
 export interface ISiphonModel {

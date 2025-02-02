@@ -108,13 +108,21 @@ export class UsageService {
   }
 
   async getSiphonStatus(chatId: string) {
-    const siphonDoc = await this.getActiveSiphon(chatId);
-    const siphon = siphonDoc.data() as ISiphonModel;
-    const { percentage, estimatedBottles } = siphon;
-    if (!percentage || !estimatedBottles)
-      return 'No se pudo obtener el estado del sifón.';
-    const progressBar = this.generateProgressBar(percentage, 15);
-    return `Gas restante: ${percentage.toFixed(2)}%.\n\n${progressBar}\n\nAproximadamente ${estimatedBottles} botellas restantes.`;
+    try {
+      const siphonDoc = await this.getActiveSiphon(chatId);
+      const siphon = siphonDoc.data() as ISiphonModel;
+      const { percentage, estimatedBottles } = siphon;
+      if (!percentage || !estimatedBottles)
+        return 'No se pudo obtener el estado del sifón.';
+      const progressBar = this.generateProgressBar(percentage, 15);
+      return `Gas restante: ${percentage.toFixed(2)}%.\n\n${progressBar}\n\nAproximadamente ${estimatedBottles} botellas restantes.`;
+    } catch (error) {
+      if (error instanceof SiphonNotFoundError) {
+        this.logger.error(error.message);
+        return 'No se encontró un sifón activo. Utiliza el comando /activar\\_sifon para conectar uno nuevo.';
+      }
+      return 'Error obteniendo el estado del sifón.';
+    }
   }
 
   private generateProgressBar(percentage: number, length: number): string {
@@ -147,6 +155,7 @@ export class UsageService {
 
   async checkUser(chatId: string) {
     try {
+      await this.firebase.isAuthenticated(chatId);
       const db = this.firebase.firestore;
       const userRef = db.collection('users').doc(chatId);
       const userSnap = await userRef.get();
@@ -155,6 +164,7 @@ export class UsageService {
           userId: chatId,
           createdAt: new Date().toISOString(),
           machineType: null,
+          token: this.firebase.generateShortLivedToken(chatId),
         };
         await userRef.set(newUser);
       }

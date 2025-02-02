@@ -132,11 +132,30 @@ export class SiphonsService {
     }
     try {
       const { alias, active } = snapDoc?.data() as ISiphonModel;
-      await snapDoc.ref.update({ active: !active });
+      if (active) {
+        await snapDoc.ref.update({ active: false });
+      } else {
+        await this.activeSiphon(siphonId);
+      }
       return `Sifón ${alias} actualizado correctamente.`;
     } catch (error) {
       console.error(error);
       throw new Error('Error al actualizar el sifón.');
     }
+  }
+  async activeSiphon(siphonId: string) {
+    const db = this.firebase.firestore;
+    const snap = await db.collection('siphons').get();
+    snap.docs.forEach((doc) => {
+      if (doc.id === siphonId) {
+        doc.ref.update({ active: true }).catch(() => {
+          throw new Error('Error al actualizar el sifon');
+        });
+      } else {
+        doc.ref.update({ active: false }).catch(() => {
+          throw new Error('Error al actualizar el sifon');
+        });
+      }
+    });
   }
 }

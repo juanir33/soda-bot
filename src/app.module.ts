@@ -8,6 +8,7 @@ import { TelegramModule } from './modules/telegram/telegram.module';
 import { AlertsService } from './modules/alerts/alerts.service';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './core/configuration';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import configuration from './core/configuration';
     UsageModule,
     FirebaseModule,
     TelegramModule,
+    JwtModule,
     ConfigModule.forRoot({
       load: [configuration],
     }),

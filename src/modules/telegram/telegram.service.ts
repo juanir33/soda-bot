@@ -14,6 +14,7 @@ import { SiphonsService } from '../shipons/siphons.service';
 import { HELP_MESSAGE } from 'src/helpers/constants';
 import { ISiphonModel } from 'src/interfaces';
 import { AlertsService } from 'src/modules/alerts/alerts.service';
+import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit {
@@ -24,40 +25,28 @@ export class TelegramBotService implements OnModuleInit {
   constructor(
     private readonly usageService: UsageService,
     private readonly siphonsService: SiphonsService,
+    private readonly firebaseService: FirebaseService,
     @Inject(forwardRef(() => AlertsService))
     private readonly alertService: AlertsService,
   ) {}
 
   onModuleInit() {
     //const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-    this.bot = new TelegramBot(this.botToken, { webHook: true });
-    this.bot
-      .setWebHook(
-        process.env.URL_WEBHOOK || '',
-
-        {
-          secret_token: this.secret_token,
-        },
-      )
-      .catch((error) => {
-        if (error instanceof Error) {
-          this.logger.error(error.message);
-        }
-      });
-    //this.bot.onText(/\/start/, (msg) => this.start(msg));
-    // this.bot.onText(/\/configurar/, (msg) => this.configureMachine(msg));
-    // this.bot.onText(/\/registrar_uso/, (msg) => this.registerUsage(msg));
-    // this.bot.onText(/\/recargar_sifon/, (msg) => this.rechargeSiphon(msg));
-    // this.bot.onText(/\/estado_sifon/, (msg) => this.checkSiphonStatus(msg));
-    // this.bot.onText(/\/cargar_sifon (.+)/, (msg, match) =>
-    //   this.createSiphon(msg, match),
-    // );
-    // this.bot.onText(/\/help/, (msg) => this.sendHelpMessage(msg));
-    // this.bot.onText(/\/activar_sifon/, (msg) => this.activeSiphon(msg));
-    // this.bot.onText(/\/listar_sifones/, (msg) => this.listSiphons(msg));
-    // this.bot.onText(/\/reporte/, () =>
-    //   this.alertService.sendWeeklySiphonReport(),
-    // );
+    this.bot = new TelegramBot(this.botToken, { polling: true });
+    this.bot.onText(/\/start/, (msg) => this.start(msg));
+    this.bot.onText(/\/configurar/, (msg) => this.configureMachine(msg));
+    this.bot.onText(/\/registrar_uso/, (msg) => this.registerUsage(msg));
+    this.bot.onText(/\/recargar_sifon/, (msg) => this.rechargeSiphon(msg));
+    this.bot.onText(/\/estado_sifon/, (msg) => this.checkSiphonStatus(msg));
+    this.bot.onText(/\/cargar_sifon (.+)/, (msg, match) =>
+      this.createSiphon(msg, match),
+    );
+    this.bot.onText(/\/help/, (msg) => this.sendHelpMessage(msg));
+    this.bot.onText(/\/activar_sifon/, (msg) => this.activeSiphon(msg));
+    this.bot.onText(/\/listar_sifones/, (msg) => this.listSiphons(msg));
+    this.bot.onText(/\/reporte/, () =>
+      this.alertService.sendWeeklySiphonReport(),
+    );
   }
 
   private async handleError(
@@ -107,11 +96,17 @@ export class TelegramBotService implements OnModuleInit {
   }
   async start(msg: TelegramBot.Message) {
     const chatId = String(msg.chat.id);
-    await this.usageService.checkUser(chatId);
-    await this.bot.sendMessage(
-      chatId,
-      '¡Bienvenido al sistema SodaStream! Usa /configurar para empezar.',
-    );
+    try {
+      await this.chekLogin(chatId);
+      await this.usageService.checkUser(chatId);
+      await this.bot.sendMessage(
+        chatId,
+        '¡Bienvenido al sistema SodaStream! Usa /configurar para empezar.',
+      );
+    } catch (error) {
+      this.logger.error(error);
+      await this.handleError(chatId, error, 'Error al iniciar sesión.');
+    }
   }
 
   async configureMachine(msg: TelegramBot.Message) {
@@ -573,5 +568,44 @@ export class TelegramBotService implements OnModuleInit {
 
   async sendMessageToUser(chatId: number, message: string) {
     await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+  }
+
+  async loginComand(chatId: string) {
+    await this.bot.sendMessage(
+      chatId,
+      'No estas autenticado, porfavor inicia sesion',
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Iniciar sesión',
+                callback_data: 'start_login',
+              },
+            ],
+          ],
+        },
+      },
+    );
+
+    this.bot.once('callback_query', (query) => {
+      if (query.data === 'start_login') {
+        this.firebaseService.addToken(chatId).catch(() => {});
+      }
+      this.bot
+        .sendMessage(chatId, 'No inicio sesion')
+        .then(() => {
+          throw new Error('No estas autenticado');
+        })
+        .catch(() => {});
+    });
+  }
+
+  async chekLogin(chatId: string) {
+    const logged = await this.firebaseService.isAuthenticated(chatId);
+    if (!logged) {
+      //await this.loginComand(chatId);
+      return;
+    }
   }
 }
